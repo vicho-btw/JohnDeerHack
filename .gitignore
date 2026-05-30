@@ -1,0 +1,15 @@
+# entornos
+venv/
+__pycache__/
+*.pyc
+
+# datos y artefactos pesados (no los subas al repo)
+data/*.mp4
+data/*.pkl
+*.pt
+*.pth
+*.safetensors
+checkpoints/
+
+# deja el data/ pero ignora su contenido pesado
+!data/.gitkeep

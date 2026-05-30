@@ -1,0 +1,13 @@
+# Deps que corren en TU MAC (sin GPU). Instala con:
+#   python -m venv venv && source venv/bin/activate
+#   pip install -r requirements-mac.txt
+#
+# Nota: en Mac con Apple Silicon, mediapipe a veces necesita Python 3.10-3.11.
+# Si mediapipe falla, usa un entorno con python 3.11.
+
+numpy
+opencv-python
+ultralytics            # YOLO11 (detección de objetos)
+mediapipe              # manos (21 keypoints)
+pybullet               # simulador del brazo Franka
+requests               # cliente HTTP al pod
