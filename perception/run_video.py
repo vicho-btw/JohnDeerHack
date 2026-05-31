@@ -41,6 +41,11 @@ from observation_contract import Observation, IMG_HW, STATE_DIM, DEFAULT_PROMPT
 # Modelo open-vocabulary por defecto. Alternativa: "yolov8s-worldv2.pt".
 YOLO_WORLD_WEIGHTS = "yolov8s-world.pt"
 
+# Umbral de confianza para YOLO-World (open-vocab tiende a puntuar bajo;
+# como ademas nos quedamos solo con el objeto mas cercano a las manos,
+# un umbral bajo es seguro).
+YOLO_CONF = 0.05
+
 # Clases por defecto para la secuencia 9011-a01 (toy excavator), tomadas de los
 # noun_cls reales del dataset (9011-a01_fine_actions.csv). Ajusta con --objects.
 DEFAULT_OBJECTS = [
@@ -79,8 +84,8 @@ def get_yolo():
 def get_hands():
     global _hands
     if _hands is None:
-        import mediapipe as mp
-        _hands = mp.solutions.hands.Hands(
+        from mediapipe.python.solutions import hands as mp_hands
+        _hands = mp_hands.Hands(
             static_image_mode=False, max_num_hands=2,
             min_detection_confidence=0.4,
         )
@@ -135,7 +140,7 @@ def detect_objects(proc_bgr):
 
     Con YOLO-World, res.names mapea el indice de clase al texto de --objects.
     """
-    res = get_yolo()(proc_bgr, verbose=False)[0]
+    res = get_yolo()(proc_bgr, verbose=False, conf=YOLO_CONF)[0]
     out = []
     for b in res.boxes:
         cls = int(b.cls[0])
