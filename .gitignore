@@ -4,7 +4,6 @@ __pycache__/
 *.pyc
 
 # datos y artefactos pesados (no los subas al repo)
-data/*.mp4
 data/*.pkl
 *.pt
 *.pth
@@ -13,3 +12,10 @@ checkpoints/
 
 # deja el data/ pero ignora su contenido pesado
 !data/.gitkeep
+
+# artefactos locales del pod (no subir)
+ckpts/
+.hf_home/
+.claude/
+a.out
+data/assembly101/
