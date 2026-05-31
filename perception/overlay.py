@@ -1,11 +1,16 @@
 """
 perception/overlay.py — render visual de la percepcion.
 
-Dibuja sobre cada frame: cajas de objetos (YOLO), landmarks de manos (MediaPipe),
-y la etiqueta de fase. Produce el video del PANEL IZQUIERDO del dashboard.
+Dibuja sobre cada frame (ya mejorado con CLAHE, monocromo):
+  * landmarks de las manos (MediaPipe),
+  * UNA sola caja: el objeto manipulado (el mas cercano a las manos),
+  * la etiqueta de fase.
+Produce el video del PANEL IZQUIERDO del dashboard.
 
 Uso:
-    python perception/overlay.py --video data/sample.mp4 --out data/overlay.mp4
+    python perception/overlay.py --objects "toy excavator,screwdriver,hand"
+    python perception/overlay.py --video data/sample_ego.mp4 --out data/overlay.mp4 \
+        --objects "excavator arm,excavator bucket,screw"
 """
 import argparse
 import os
@@ -15,7 +20,10 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from perception.run_video import detect_objects, detect_hands, infer_phase
+from perception.run_video import (
+    detect_objects, detect_hands, infer_phase,
+    preprocess_mono, set_object_classes, nearest_object_to_hands,
+)
 
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
@@ -38,8 +46,9 @@ def draw_hands(frame, hands):
     return frame
 
 
-def draw_objects(frame, objects, max_boxes=6):
-    for label, conf, (x1, y1, x2, y2) in objects[:max_boxes]:
+def draw_object(frame, objects):
+    """Dibuja UNA caja: el objeto manipulado (lista de 0 o 1 elemento)."""
+    for label, conf, (x1, y1, x2, y2) in objects[:1]:
         cv2.rectangle(frame, (x1, y1), (x2, y2), (60, 130, 240), 2)
         cv2.putText(frame, f"{label} {conf:.2f}", (x1, max(y1 - 6, 12)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (60, 130, 240), 2)
@@ -55,10 +64,17 @@ def draw_phase(frame, phase):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--video", required=True)
+    ap.add_argument("--video", default="data/sample_ego.mp4")
     ap.add_argument("--out", default="data/overlay.mp4")
     ap.add_argument("--stride", type=int, default=2)
+    ap.add_argument(
+        "--objects", default="",
+        help='Clases a detectar (open-vocab), separadas por coma. '
+             'Ej: "metal bracket,screw,excavator part". Vacio -> DEFAULT_OBJECTS.',
+    )
     args = ap.parse_args()
+
+    set_object_classes([c.strip() for c in args.objects.split(",") if c.strip()])
 
     cap = cv2.VideoCapture(args.video)
     if not cap.isOpened():
@@ -77,13 +93,16 @@ def main():
         if fi % args.stride != 0:
             fi += 1
             continue
-        objects = detect_objects(frame)
-        hands = detect_hands(frame)
-        phase = infer_phase(objects, hands)
-        frame = draw_objects(frame, objects)
-        frame = draw_hands(frame, hands)
-        frame = draw_phase(frame, phase)
-        vw.write(frame)
+        proc = preprocess_mono(frame)             # lienzo monocromo + CLAHE
+        objects = detect_objects(proc)
+        hands = detect_hands(proc)
+        manip = nearest_object_to_hands(objects, hands, frame.shape[:2])  # 0 o 1
+        phase = infer_phase(manip, hands)
+        canvas = proc                              # dibujamos sobre la vista realzada
+        canvas = draw_object(canvas, manip)
+        canvas = draw_hands(canvas, hands)
+        canvas = draw_phase(canvas, phase)
+        vw.write(canvas)
         fi += 1
     cap.release()
     vw.release()
