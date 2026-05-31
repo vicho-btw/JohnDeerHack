@@ -9,5 +9,7 @@ numpy
 opencv-python
 ultralytics            # YOLO11 (detección de objetos)
 mediapipe              # manos (21 keypoints)
-pybullet               # simulador del brazo Franka
+mujoco==3.1.6          # Phase 2: simulador fisico del brazo Franka (wheel cp39 arm64).
+                       # pybullet NO compila en py3.9 / Apple Silicon — migrado a MuJoCo.
+flask                  # Phase 2: dashboard web en vivo (demo/live_dashboard.py)
 requests               # cliente HTTP al pod

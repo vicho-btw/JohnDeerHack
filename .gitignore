@@ -22,3 +22,8 @@ data/assembly101/
 
 # modelo MediaPipe Tasks (se auto-descarga)
 *.task
+
+# tool artifacts / OS cruft
+ruvector.db
+.DS_Store
+**/.DS_Store
