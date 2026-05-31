@@ -46,6 +46,13 @@ YOLO_WORLD_WEIGHTS = "yolov8s-world.pt"
 # un umbral bajo es seguro).
 YOLO_CONF = 0.05
 
+# Modelo de manos (MediaPipe Tasks). mediapipe>=0.10.3x ya NO trae el modulo
+# legacy `solutions`; usamos HandLandmarker. El .task se auto-descarga si falta
+# (mismo patron que los pesos de YOLO).
+HAND_TASK_PATH = "hand_landmarker.task"
+HAND_TASK_URL = ("https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+                 "hand_landmarker/float16/1/hand_landmarker.task")
+
 # Clases por defecto para la secuencia 9011-a01 (toy excavator), tomadas de los
 # noun_cls reales del dataset (9011-a01_fine_actions.csv). Ajusta con --objects.
 DEFAULT_OBJECTS = [
@@ -82,13 +89,20 @@ def get_yolo():
 
 
 def get_hands():
+    """HandLandmarker (MediaPipe Tasks API). mediapipe>=0.10.3x no trae solutions."""
     global _hands
     if _hands is None:
-        from mediapipe.python.solutions import hands as mp_hands
-        _hands = mp_hands.Hands(
-            static_image_mode=False, max_num_hands=2,
-            min_detection_confidence=0.4,
+        import os, urllib.request
+        from mediapipe.tasks.python import vision
+        from mediapipe.tasks.python.core.base_options import BaseOptions
+        if not os.path.exists(HAND_TASK_PATH):
+            urllib.request.urlretrieve(HAND_TASK_URL, HAND_TASK_PATH)
+        opts = vision.HandLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=HAND_TASK_PATH),
+            num_hands=2, min_hand_detection_confidence=0.4,
+            running_mode=vision.RunningMode.IMAGE,
         )
+        _hands = vision.HandLandmarker.create_from_options(opts)
     return _hands
 
 
@@ -152,13 +166,15 @@ def detect_objects(proc_bgr):
 
 
 def detect_hands(proc_bgr):
-    """Devuelve lista de manos; cada mano = np.ndarray (21, 3) en coords normalizadas."""
+    """Lista de manos; cada mano = np.ndarray (21, 3) normalizada (MediaPipe Tasks)."""
+    import mediapipe as mp
     rgb = cv2.cvtColor(proc_bgr, cv2.COLOR_BGR2RGB)
-    res = get_hands().process(rgb)
+    mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+    res = get_hands().detect(mp_img)
     hands = []
-    if res.multi_hand_landmarks:
-        for lm in res.multi_hand_landmarks:
-            pts = np.array([[p.x, p.y, p.z] for p in lm.landmark], dtype=np.float32)
+    if res.hand_landmarks:
+        for lm in res.hand_landmarks:
+            pts = np.array([[p.x, p.y, p.z] for p in lm], dtype=np.float32)
             hands.append(pts)
     return hands
 

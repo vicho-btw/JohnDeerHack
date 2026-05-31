@@ -19,3 +19,6 @@ ckpts/
 .claude/
 a.out
 data/assembly101/
+
+# modelo MediaPipe Tasks (se auto-descarga)
+*.task
