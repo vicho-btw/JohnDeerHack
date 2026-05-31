@@ -101,6 +101,35 @@ def preprocess_mono(frame_bgr):
     return cv2.cvtColor(eq, cv2.COLOR_GRAY2BGR)
 
 
+
+# Umbral de croma. Si la diferencia media entre canales por pixel supera esto,
+# el frame tiene COLOR real y se usa tal cual (sin CLAHE). Si no, es monocromo
+# (gris replicado en 3 canales) y se preprocesa con preprocess_mono.
+COLOR_CHROMA_THRESHOLD = 8.0
+
+
+def is_color(frame_bgr):
+    """True si el frame tiene croma real (no es gris replicado en 3 canales)."""
+    if frame_bgr.ndim != 3 or frame_bgr.shape[2] != 3:
+        return False
+    b = frame_bgr[:, :, 0].astype(np.int16)
+    g = frame_bgr[:, :, 1].astype(np.int16)
+    r = frame_bgr[:, :, 2].astype(np.int16)
+    mx = np.maximum(np.maximum(b, g), r)
+    mn = np.minimum(np.minimum(b, g), r)
+    return float((mx - mn).mean()) > COLOR_CHROMA_THRESHOLD
+
+
+def preprocess_frame(frame_bgr):
+    """Preprocesado adaptativo para la deteccion.
+
+    - Frame YA a color (croma real): se usa tal cual, sin CLAHE (Egocentric-10K).
+    - Frame monocromo (gris replicado): CLAHE + 3 canales (preprocess_mono).
+    """
+    if is_color(frame_bgr):
+        return frame_bgr
+    return preprocess_mono(frame_bgr)
+
 def detect_objects(proc_bgr):
     """Devuelve lista de (label, conf, (x1,y1,x2,y2)) sobre la imagen preprocesada.
 
@@ -222,7 +251,7 @@ def process_video(path, max_frames=None, stride=1, prompt=DEFAULT_PROMPT):
         if fi % stride != 0:
             fi += 1
             continue
-        proc = preprocess_mono(frame)             # gris -> 3ch + CLAHE (ayuda deteccion)
+        proc = preprocess_frame(frame)            # color -> tal cual; mono -> CLAHE+3ch
         objects = detect_objects(proc)
         hands = detect_hands(proc)
         manip = nearest_object_to_hands(objects, hands, frame.shape[:2])  # 0 o 1 objeto

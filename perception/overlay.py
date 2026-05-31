@@ -22,7 +22,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from perception.run_video import (
     detect_objects, detect_hands, infer_phase,
-    preprocess_mono, set_object_classes, nearest_object_to_hands,
+    preprocess_mono, preprocess_frame, set_object_classes, nearest_object_to_hands,
 )
 
 HAND_CONNECTIONS = [
@@ -93,7 +93,7 @@ def main():
         if fi % args.stride != 0:
             fi += 1
             continue
-        proc = preprocess_mono(frame)             # lienzo monocromo + CLAHE
+        proc = preprocess_frame(frame)             # lienzo monocromo + CLAHE
         objects = detect_objects(proc)
         hands = detect_hands(proc)
         manip = nearest_object_to_hands(objects, hands, frame.shape[:2])  # 0 o 1
